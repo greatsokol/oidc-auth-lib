@@ -1,0 +1,25 @@
+{
+  "name": "oidc-auth-lib",
+  "private": false,
+  "version": "0.0.1",
+  "main": "./public-api.d.ts",
+  "scripts": {
+    "ng": "ng",
+    "build": "ng build auth-lib",
+    "pack": "npm run build && cd ./dist/auth-lib && npm pack",
+    "deploy": "npm run build && npm publish --access public"
+  },
+  "devDependencies": {
+    "@angular-devkit/build-angular": "^15.0.0",
+    "@angular/cli": "^15.0.0",
+    "@angular/compiler-cli": "^15.0.0",
+    "ng-packagr": "^15.0.0",
+    "tslib": "^2.8.1"
+  },
+  "peerDependencies": {
+    "@angular/common": "^15.0.0",
+    "@angular/core": "^15.0.0",
+    "angular-oauth2-oidc": "^15.0.1"
+  },
+  "sideEffects": false
+}
