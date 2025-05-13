@@ -1,6 +1,6 @@
 import {inject, Injectable, OnDestroy} from "@angular/core";
 import {AuthConfig, OAuthEvent, OAuthService} from "angular-oauth2-oidc";
-import {AuthContext, ResolveType} from "./types";
+import {ResolveType} from "./types";
 import {Subscription} from "rxjs";
 import {AUTH_LIB_ALLOWED_ROLES_TOKEN, AUTH_LIB_SETTINGS_TOKEN} from "./tokens";
 
@@ -8,13 +8,16 @@ import {AUTH_LIB_ALLOWED_ROLES_TOKEN, AUTH_LIB_SETTINGS_TOKEN} from "./tokens";
     providedIn: 'root'
 })
 export class AuthService implements OnDestroy {
-    private authContext: AuthContext | null = null;
     private events$: Subscription | null = null;
     private allowedRoles = inject(AUTH_LIB_ALLOWED_ROLES_TOKEN);
     private authLibSettings = inject(AUTH_LIB_SETTINGS_TOKEN);
+    private accessTokenClaims: any | null = null;
+    private userRoles: string[] | null = null;
+    private userName: string | null = null;
+    private sessionId: string | null = null;
 
     constructor(private oAuthService: OAuthService) {
-        this.debug("Constructor oidc-auth-lib");
+        this.debug("Constructor oidc-auth-lib '0.0.1'");
     }
 
     private initialize() {//resolve: ResolveType
@@ -155,14 +158,9 @@ export class AuthService implements OnDestroy {
     }
 
     private isUserHasAllowedRoles = (allowedRoles: string[]) => {
-        const context = this.getAuthContext();
-        if (!context) {
-            console.error('AuthContext is empty!');
-            return false;
-        }
-        const tokenRoles: string[] = context.userRoles;
+        const tokenRoles = this.getUserRoles();
         if (!tokenRoles || !tokenRoles.length) {
-            console.error('No roles in AuthContext!');
+            console.error('No roles available!');
             return false;
         }
 
@@ -190,15 +188,21 @@ export class AuthService implements OnDestroy {
         return this.isUserHasAllowedRoles(allRoles);
     }
 
-    private _isAuthenticated(resolve: ResolveType, rolesGroupName: string, allowedAdminOnly: boolean) {
+    private _isAuthenticated(resolve: ResolveType, rolesGroupName: string | null = null, allowedAdminOnly: boolean | null = null) {
         const notLoggedIn: boolean = !!this.oAuthService.getAccessToken();
         if (!notLoggedIn) {
             this.login(resolve);
         } else if (this.oAuthService.hasValidAccessToken()) {
             this.debug("access_token is valid");
-            resolve(allowedAdminOnly
-                ? this.isAdminAccessAllowed(rolesGroupName)
-                : this.isAccessAllowed(rolesGroupName));
+            if (allowedAdminOnly === null || rolesGroupName === null) {
+                // проверка ролей не требуется
+                resolve(true);
+            } else {
+                // требуется проверка ролей
+                resolve(allowedAdminOnly
+                    ? this.isAdminAccessAllowed(rolesGroupName)
+                    : this.isAccessAllowed(rolesGroupName));
+            }
         } else if (this.refreshTokenIsValid()) {
             this.refreshToken(resolve);
         } else {
@@ -206,7 +210,7 @@ export class AuthService implements OnDestroy {
         }
     }
 
-    public isAuthenticated = (rolesGroupName: string, allowedAdminOnly: boolean): Promise<boolean> => {
+    public isAuthenticated = (rolesGroupName: string | null = null, allowedAdminOnly: boolean | null = null): Promise<boolean> => {
         return new Promise<boolean>((resolve: ResolveType): void => {
             const notInitialized: boolean = !this.oAuthService.tokenEndpoint;
             if (notInitialized) {
@@ -226,6 +230,7 @@ export class AuthService implements OnDestroy {
     private getAccessTokenClaims(): null | any {
         const rawAccessToken: string = this.oAuthService.getAccessToken();
         if (!rawAccessToken) {
+            this.debug("getAccessTokenClaims: NO VALID ACCESS TOKEN");
             return null;
         }
         return JSON.parse(atob(rawAccessToken.split('.')[1]));
@@ -238,31 +243,45 @@ export class AuthService implements OnDestroy {
         return groups ? roles.concat(groups) : roles;
     }
 
-    public getAuthContext = (): null | AuthContext => {
-        if (this.authContext) return this.authContext;
-
-        const accessToken = this.getAccessTokenClaims();
-        if (!accessToken) {
-            //this.debug("getAuthContext: NO VALID ACCESS TOKEN");
-            return null;
-        }
-        this.debug("getAuthContext token:", accessToken);
-
-        const preferred_username: string = accessToken ? accessToken["preferred_username"] : "";
-        const userRoles: string[] = this.getAllRolesWithGroups(accessToken);
-        const sessionId: string = accessToken ? accessToken["sid"] : "";
-
-        this.authContext = {
-            userName: preferred_username,
-            userRoles: userRoles,
-            sessionId: sessionId
-        };
-
-        return this.authContext;
+    private resetAuthContext(): void {
+        this.accessTokenClaims = null;
+        this.userRoles = null;
+        this.userName = null;
+        this.sessionId = null;
     }
 
-    private resetAuthContext(): void {
-        this.authContext = null;
+    public getIssuerUri(): string {
+        return this.authLibSettings.keycloak.issuer;
+    }
+
+    public getUserRoles(): string[] | null {
+        if (this.userRoles) return this.userRoles;
+        if (!this.accessTokenClaims) {
+            this.accessTokenClaims = this.getAccessTokenClaims();
+            if (!this.accessTokenClaims) return null;
+        }
+        this.userRoles = this.getAllRolesWithGroups(this.accessTokenClaims);
+        return this.userRoles;
+    }
+
+    public getUserName(): string | null {
+        if (this.userName) return this.userName;
+        if (!this.accessTokenClaims) {
+            this.accessTokenClaims = this.getAccessTokenClaims();
+            if (!this.accessTokenClaims) return null;
+        }
+        this.userName = this.accessTokenClaims["preferred_username"];
+        return this.userName;
+    }
+
+    public getSessionId(): string | null {
+        if (this.sessionId) return this.sessionId;
+        if (!this.accessTokenClaims) {
+            this.accessTokenClaims = this.getAccessTokenClaims();
+            if (!this.accessTokenClaims) return null;
+        }
+        this.sessionId = this.accessTokenClaims["sid"];
+        return this.sessionId;
     }
 
     private debug(...args: any[]): void {

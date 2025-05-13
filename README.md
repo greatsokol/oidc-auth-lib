@@ -32,7 +32,7 @@
 
 где константа AUTH_LIB_SETTINGS имеет вид:
 
-    export const AUTH_LIB_SETTINGS: AuthLibOidcSettings = {
+    export const AUTH_LIB_SETTINGS: AuthLibOidcSettingsType = {
         keycloak: {
             issuer: "https://keycloak.local/realms/APIM",
             clientId: "microfrontends_client"
@@ -58,9 +58,9 @@
         ]
     }
 
-где константа AUTH_LIB_ALLOWED_ROLES для микрофронтенда имеет вид:
+где константа AUTH_LIB_ALLOWED_ROLES для микрофронтенда (используется только при standalone-запуске МФ) имеет вид:
 
-    export const AUTH_LIB_ALLOWED_ROLES: AuthLibAllowedRoles = {
+    export const AUTH_LIB_ALLOWED_ROLES: AuthLibAllowedRolesType = {
         mf_name: {
             userRoles: ['admin_role1', ..., 'admin_roleN'], 
             adminRoles: ['user_role1', ..., 'user_roleN']
@@ -69,7 +69,7 @@
 
 и для хост-приложения:
 
-    export const AUTH_LIB_ALLOWED_ROLES: AuthLibAllowedRoles = {
+    export const AUTH_LIB_ALLOWED_ROLES: AuthLibAllowedRolesType = {
         mf_name: {
             userRoles: ['admin_role1', ..., 'admin_roleN'], 
             adminRoles: ['user_role1', ..., 'user_roleN']
@@ -91,13 +91,21 @@
 `userRoles`, `adminRoles` - наборы ролей, которые имеют пониженные и повышенные права,
 соответствующие им роли должны находиться в токене по пути `realm_access.roles`.
 
+## Интерцепторы
+Библиотека `angular-oauth2-oidc` использует интерцептор для передачи токена доступа в запросы к микросервису.
+
+Библиотека `oidc-auth-lib` добавляет интерцептор для проверки валидности токена перед запросом к микросервису.
+Если токен не валиден, то перед запросом к микросервису запускается поток авторизации в OIDC-провайдере. 
+
 ## Функции
 ### isAuthenticated
-Проверяет наличие валидного токена. Если токен отсутствует, то запускает аутентификацию в oidc-провайдере.
+Используется в AuthGuard и интерцепторе. Проверяет наличие валидного токена. 
+Если токен отсутствует, то запускает аутентификацию в oidc-провайдере.
 После успешного завершения аутентификации, проверяет наличие ролей в токене, используя настройки, 
-предоставленные в `AUTH_LIB_ALLOWED_ROLES` для `rolesGroupName`:
+предоставленные в `AUTH_LIB_ALLOWED_ROLES` для `rolesGroupName`. Если `rolesGroupName` в функцию 
+не передавался (null по умолчанию), то проверка ролей не проводится:
 
-    public isAuthenticated = (rolesGroupName: string, allowedAdminOnly: boolean): Promise<boolean>
+    public isAuthenticated = (rolesGroupName: string | null = null, allowedAdminOnly: boolean | null = null): Promise<boolean>
 
 где
 
@@ -105,27 +113,26 @@
 `allowedAdminOnly` - разрешено ли использование повышенных прав
 
 ### isAccessAllowed
+Используется в хост-приложении для отображения ссылок на микрофронтенды для пользователей с разрешенными ролями. 
 Проверяет наличие ролей в токене, используя настройки,
 предоставленные в `AUTH_LIB_ALLOWED_ROLES` для `rolesGroupName`
 
     public isAccessAllowed(rolesGroupName: string)
 
-### getAuthContext
-Возвращает контекст аутентификации  
+### getUserName
+Возвращает `preferred_username` из claims сертификата доступа 
 
-    public getAuthContext = (): null | AuthContext
+    public getUserName(): string | null
 
-контекст `AuthContext` имеет вид:
+### getUserRoles
+Возвращает `realm_access.roles` из claims сертификата доступа
+    
+    public getUserName(): string | null
 
-    export type AuthContext =  {
-        userName: string,
-        userRoles: string[],
-        sessionId?: string
-    }
+### getSessionId
+Возвращает sid из claims сертификата доступа
 
-где `userName` - имя пользователя, 
-`userRoles` - список ролей пользователя из claims токена (`realm_access.roles`), 
-`sessionId` - id сессии.
+    public getSessionId(): string | null
 
 ### logout
 Инициирует выход:
