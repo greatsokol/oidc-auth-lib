@@ -23,7 +23,7 @@ export class IsAuthenticatedInterceptor implements HttpInterceptor {
         }
 
         return from(this.authService.isAuthenticated()).pipe(
-            tap(result => console.log('INTERCEPTOR isAuthenticated result', result)),
+            tap(result => console.debug('INTERCEPTOR isAuthenticated result', result)),
             switchMap(result => next.handle(request))
         );
     }
