@@ -160,7 +160,7 @@ export class AuthService implements OnDestroy {
     private isUserHasAllowedRoles = (allowedRoles: string[]) => {
         const tokenRoles = this.getUserRoles();
         if (!tokenRoles || !tokenRoles.length) {
-            console.error('No roles available!');
+            console.debug('No roles available!');
             return false;
         }
 
