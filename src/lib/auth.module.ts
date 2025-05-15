@@ -1,7 +1,6 @@
-import {ModuleWithProviders, NgModule} from "@angular/core";
+import {NgModule} from "@angular/core";
 import {HTTP_INTERCEPTORS, HttpClientModule} from "@angular/common/http";
 import {OAuthModule} from "angular-oauth2-oidc";
-import {AuthService} from "./auth.service";
 import {IsAuthenticatedInterceptor} from "./interceptors";
 
 
@@ -21,12 +20,12 @@ import {IsAuthenticatedInterceptor} from "./interceptors";
     ]
 })
 export class AuthModule {
-    public static forRoot(): ModuleWithProviders<AuthModule> {
-        return {
-            ngModule: AuthModule,
-            providers: [
-                AuthService
-            ]
-        };
-    }
+    // public static forRoot(): ModuleWithProviders<AuthModule> {
+    //     return {
+    //         ngModule: AuthModule,
+    //         providers: [
+    //             AuthService
+    //         ]
+    //     };
+    // }
 }

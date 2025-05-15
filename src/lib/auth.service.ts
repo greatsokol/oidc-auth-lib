@@ -5,7 +5,7 @@ import {Subscription} from "rxjs";
 import {AUTH_LIB_ALLOWED_ROLES_TOKEN, AUTH_LIB_SETTINGS_TOKEN} from "./tokens";
 
 @Injectable({
-    providedIn: 'root'
+    providedIn: null
 })
 export class AuthService implements OnDestroy {
     private events$: Subscription | null = null;
